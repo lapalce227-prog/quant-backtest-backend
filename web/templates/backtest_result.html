@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ .title }}</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 24px;
+      background: #f7f8fa;
+      color: #222;
+    }
+
+    h1 {
+      margin-bottom: 16px;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    input, button {
+      padding: 8px 12px;
+      font-size: 14px;
+    }
+
+    .cards {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 16px;
+      min-width: 180px;
+    }
+
+    .label {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .value {
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .error {
+      color: #c00;
+      margin-bottom: 12px;
+      min-height: 20px;
+    }
+
+    #equityChart {
+      width: 100%;
+      height: 420px;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+    }
+
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      text-align: left;
+      font-size: 14px;
+    }
+
+    th {
+      background: #f1f3f5;
+    }
+  </style>
+</head>
+<body>
+  <h1>回测结果</h1>
+
+  <div class="toolbar">
+    <input id="backtestId" type="number" min="1" placeholder="输入 backtest id">
+    <button id="loadBtn" type="button">加载</button>
+  </div>
+
+  <div id="error" class="error"></div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="label">Total Return</div>
+      <div id="totalReturn" class="value">-</div>
+    </div>
+    <div class="card">
+      <div class="label">Max Drawdown</div>
+      <div id="maxDrawdown" class="value">-</div>
+    </div>
+  </div>
+
+  <div id="equityChart"></div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Symbol</th>
+        <th>Side</th>
+        <th>Entry Time</th>
+        <th>Entry Price</th>
+        <th>Exit Time</th>
+        <th>Exit Price</th>
+        <th>Quantity</th>
+        <th>PnL</th>
+        <th>Return Rate</th>
+      </tr>
+    </thead>
+    <tbody id="tradesBody">
+      <tr>
+        <td colspan="9">请输入 backtest id 后点击加载</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <script>
+    const errorEl = document.getElementById("error");
+    const totalReturnEl = document.getElementById("totalReturn");
+    const maxDrawdownEl = document.getElementById("maxDrawdown");
+    const tradesBodyEl = document.getElementById("tradesBody");
+    const loadBtn = document.getElementById("loadBtn");
+    const backtestIdInput = document.getElementById("backtestId");
+    const chart = echarts.init(document.getElementById("equityChart"));
+
+    function formatPercent(value) {
+      if (value === null || value === undefined) {
+        return "-";
+      }
+      return (Number(value) * 100).toFixed(2) + "%";
+    }
+
+    function formatNumber(value) {
+      if (value === null || value === undefined) {
+        return "-";
+      }
+      return Number(value).toFixed(4);
+    }
+
+    function formatTime(value) {
+      if (!value) {
+        return "-";
+      }
+      return new Date(value).toLocaleString();
+    }
+
+    function renderChart(equityCurve) {
+      const xData = equityCurve.map(item => item.timestamp);
+      const yData = equityCurve.map(item => item.equity);
+
+      chart.setOption({
+        tooltip: {
+          trigger: "axis"
+        },
+        xAxis: {
+          type: "category",
+          data: xData
+        },
+        yAxis: {
+          type: "value"
+        },
+        series: [
+          {
+            name: "Equity",
+            type: "line",
+            smooth: true,
+            showSymbol: false,
+            data: yData
+          }
+        ]
+      });
+    }
+
+    function renderTrades(trades) {
+      tradesBodyEl.innerHTML = "";
+
+      if (!trades.length) {
+        tradesBodyEl.innerHTML = `
+          <tr>
+            <td colspan="9">暂无交易记录</td>
+          </tr>
+        `;
+        return;
+      }
+
+      trades.forEach(trade => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${trade.symbol}</td>
+          <td>${trade.side}</td>
+          <td>${formatTime(trade.entry_time)}</td>
+          <td>${formatNumber(trade.entry_price)}</td>
+          <td>${formatTime(trade.exit_time)}</td>
+          <td>${formatNumber(trade.exit_price)}</td>
+          <td>${formatNumber(trade.quantity)}</td>
+          <td>${formatNumber(trade.pnl)}</td>
+          <td>${formatPercent(trade.return_rate)}</td>
+        `;
+        tradesBodyEl.appendChild(tr);
+      });
+    }
+
+    async function loadBacktest(backtestId) {
+      errorEl.textContent = "";
+
+      try {
+        const [detailResp, tradesResp] = await Promise.all([
+          fetch(`/api/v1/backtests/${backtestId}`),
+          fetch(`/api/v1/backtests/${backtestId}/trades`)
+        ]);
+
+        const detailJson = await detailResp.json();
+        const tradesJson = await tradesResp.json();
+
+        if (detailJson.code !== 0) {
+          throw new Error(detailJson.message || "加载回测详情失败");
+        }
+        if (tradesJson.code !== 0) {
+          throw new Error(tradesJson.message || "加载交易记录失败");
+        }
+
+        const detail = detailJson.data;
+        const trades = tradesJson.data.items || [];
+
+        totalReturnEl.textContent = formatPercent(detail.metrics.total_return);
+        maxDrawdownEl.textContent = formatPercent(detail.metrics.max_drawdown);
+
+        renderChart(detail.equity_curve || []);
+        renderTrades(trades);
+      } catch (error) {
+        errorEl.textContent = error.message || "加载失败";
+      }
+    }
+
+    loadBtn.addEventListener("click", () => {
+      const backtestId = backtestIdInput.value.trim();
+      if (!backtestId) {
+        errorEl.textContent = "请输入 backtest id";
+        return;
+      }
+
+      loadBacktest(backtestId);
+    });
+  </script>
+</body>
+</html>

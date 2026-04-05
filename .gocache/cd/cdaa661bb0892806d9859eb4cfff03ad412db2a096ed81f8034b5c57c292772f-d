@@ -1,0 +1,3 @@
+./backtest.go
+./market_dataset.go
+./strategy.go

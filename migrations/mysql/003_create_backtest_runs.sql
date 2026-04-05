@@ -1,0 +1,32 @@
+CREATE TABLE IF NOT EXISTS `backtest_runs` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `strategy_id` BIGINT UNSIGNED NOT NULL,
+    `market_dataset_id` BIGINT UNSIGNED NOT NULL,
+    `symbol` VARCHAR(64) NOT NULL COMMENT 'backtest config snapshot',
+    `timeframe` VARCHAR(32) NOT NULL COMMENT 'backtest config snapshot',
+    `start_time` DATETIME(3) NOT NULL,
+    `end_time` DATETIME(3) NOT NULL,
+    `initial_capital` DECIMAL(20,8) NOT NULL,
+    `commission_rate` DECIMAL(10,8) NOT NULL,
+    `slippage_rate` DECIMAL(10,8) NOT NULL,
+    `run_status` VARCHAR(32) NOT NULL,
+    `total_return` DECIMAL(12,6) NULL,
+    `max_drawdown` DECIMAL(12,6) NULL,
+    `win_rate` DECIMAL(12,6) NULL,
+    `sharpe_ratio` DECIMAL(12,6) NULL,
+    `trade_count` INT NOT NULL DEFAULT 0,
+    `equity_curve` LONGTEXT NULL,
+    `summary` JSON NULL,
+    `started_at` DATETIME(3) NULL,
+    `finished_at` DATETIME(3) NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (`id`),
+    KEY `idx_backtest_runs_strategy_id` (`strategy_id`),
+    KEY `idx_backtest_runs_market_dataset_id` (`market_dataset_id`),
+    KEY `idx_backtest_runs_run_status` (`run_status`),
+    CONSTRAINT `fk_backtest_runs_strategy_id`
+        FOREIGN KEY (`strategy_id`) REFERENCES `strategies` (`id`),
+    CONSTRAINT `fk_backtest_runs_market_dataset_id`
+        FOREIGN KEY (`market_dataset_id`) REFERENCES `market_datasets` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
