@@ -17,6 +17,14 @@ The current project scope is:
 
 This project is a backtesting platform MVP. It is not a real trading system.
 
+## Preview
+
+### Backtest List
+![Backtest List](./docs/list.png)
+
+### Backtest Detail
+![Backtest Detail](./docs/detail.png)
+
 ## Core Features
 
 - Strategy creation, update, query, and deletion
