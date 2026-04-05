@@ -19,11 +19,14 @@ This project is a backtesting platform MVP. It is not a real trading system.
 
 ## Preview
 
-### Backtest List
-![Backtest List](./docs/list.png)
+### Overview
+![Overview](./docs/overview.png)
 
-### Backtest Detail
-![Backtest Detail](./docs/detail.png)
+### Equity Curve
+![Equity Curve](./docs/equity-curve.png)
+
+### Trades
+![Trades](./docs/trades.png)
 
 ## Core Features
 
